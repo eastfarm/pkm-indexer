@@ -1,0 +1,10 @@
+fastapi==0.111.0
+uvicorn==0.29.0
+wsgidav==4.3.3
+pdfplumber==0.11.0
+langchain==0.2.0
+sentence-transformers==2.7.0
+faiss-cpu==1.8.0
+openai==1.35.7
+frontmatter==3.0.8
+apscheduler==3.10.4
