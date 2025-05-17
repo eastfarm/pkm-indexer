@@ -1,12 +1,12 @@
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
-# Fix the import for WsgiDAVApp
-from wsgidav import WsgiDAVApp  # Changed from wsgidav.wsgidav_app import WSGIDavApp
+# Updated import for WsgiDAVApp in version 4.3.3
+from wsgidav.app import WsgiDAVApp
 from fastapi.middleware.wsgi import WSGIMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from organize import organize_files
 from index import indexKB, searchKB
-import os
 import frontmatter
 import shutil
 import re
@@ -83,7 +83,6 @@ async def startup_event():
 dav_config = {
     "host": "0.0.0.0",
     "port": 8001,
-    "root": "pkm",
     "provider_mapping": {"/": "pkm"},
     "simple_dc": {
         "user_mapping": {
@@ -96,6 +95,5 @@ dav_config = {
         }
     }
 }
-# Use correct class name WsgiDAVApp instead of WSGIDavApp
 dav_app = WsgiDAVApp(dav_config)
 app.mount("/dav", WSGIMiddleware(dav_app))
