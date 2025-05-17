@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from wsgidav.wsgidav_app import WSGIDavApp
+# Fix the import for WsgiDAVApp
+from wsgidav import WsgiDAVApp  # Changed from wsgidav.wsgidav_app import WSGIDavApp
 from fastapi.middleware.wsgi import WSGIMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from organize import organize_files
@@ -95,5 +96,6 @@ dav_config = {
         }
     }
 }
-dav_app = WSGIDavApp(dav_config)
+# Use correct class name WsgiDAVApp instead of WSGIDavApp
+dav_app = WsgiDAVApp(dav_config)
 app.mount("/dav", WSGIMiddleware(dav_app))
