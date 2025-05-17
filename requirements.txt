@@ -3,9 +3,13 @@ uvicorn==0.29.0
 wsgidav==4.3.3
 pdfplumber==0.11.0
 langchain==0.2.0
-sentence-transformers==2.7.0
-faiss-cpu==1.8.0
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4
 openai==1.35.7
-frontmatter==3.0.9  # Upgraded from 3.0.8 to 3.0.9
+frontmatter==3.0.9
 apscheduler==3.10.4
-PyYAML>=5.3  # Explicitly added to satisfy langchain and frontmatter
+PyYAML>=5.3
+torch==1.13.1+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+numpy==1.23.5
+python-multipart==0.0.9
