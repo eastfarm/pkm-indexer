@@ -1,9 +1,7 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-# Updated import for WsgiDAVApp in version 4.3.3
-from wsgidav.app import WsgiDAVApp
-from fastapi.middleware.wsgi import WSGIMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from organize import organize_files
 from index import indexKB, searchKB
@@ -12,6 +10,16 @@ import shutil
 import re
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins for now (can be restricted later)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 scheduler = AsyncIOScheduler()
 
 class Query(BaseModel):
@@ -74,26 +82,50 @@ async def manual_organize():
     await organize_files()
     return {"status": "Organized"}
 
+# Simple file upload endpoint to replace WebDAV temporarily
+@app.post("/upload/{folder}")
+async def upload_file(folder: str, file_data: dict):
+    allowed_folders = ["Inbox", "Staging", "Areas"]
+    if folder not in allowed_folders:
+        raise HTTPException(status_code=400, detail="Invalid folder")
+    
+    # Create the folder path
+    path = f"pkm/{folder}"
+    os.makedirs(path, exist_ok=True)
+    
+    # Save the file
+    filename = file_data.get("filename")
+    content = file_data.get("content")
+    
+    if not filename or not content:
+        raise HTTPException(status_code=400, detail="Filename and content are required")
+    
+    with open(os.path.join(path, filename), "wb") as f:
+        if isinstance(content, str):
+            f.write(content.encode())
+        else:
+            f.write(content)
+    
+    return {"status": f"File uploaded to {folder}"}
+
+@app.get("/")
+async def root():
+    return {"message": "PKM Indexer API is running. Use /search, /staging, /approve, or /organize endpoints."}
+
 @app.on_event("startup")
 async def startup_event():
+    # Create necessary directories
+    os.makedirs("pkm/Inbox", exist_ok=True)
+    os.makedirs("pkm/Staging", exist_ok=True)
+    os.makedirs("pkm/Areas", exist_ok=True)
+    os.makedirs("pkm/Logs", exist_ok=True)
+    
+    # Initialize the index
     await indexKB()
+    
+    # Schedule the organize task
     scheduler.add_job(organize_files, "cron", hour=2)
     scheduler.start()
 
-dav_config = {
-    "host": "0.0.0.0",
-    "port": 8001,
-    "provider_mapping": {"/": "pkm"},
-    "simple_dc": {
-        "user_mapping": {
-            "*": {
-                os.getenv("WEBDAV_USERNAME", "pkmuser"): {
-                    "password": os.getenv("WEBDAV_PASSWORD", "secret"),
-                    "roles": ["admin"]
-                }
-            }
-        }
-    }
-}
-dav_app = WsgiDAVApp(dav_config)
-app.mount("/dav", WSGIMiddleware(dav_app))
+# Note: WebDAV functionality has been temporarily removed to get the app running
+# We'll add it back once the basic app is working
