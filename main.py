@@ -14,10 +14,10 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins for now (can be restricted later)
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 scheduler = AsyncIOScheduler()
@@ -60,57 +60,61 @@ async def approve(file: File):
     category = metadata.get("category", "General")
     pdf_name = metadata.get("pdf", "")
     pdf_path = os.path.join(staging, pdf_name) if pdf_name else ""
+
     if re.search(r"# Reviewed: true", content, re.IGNORECASE):
         dest_dir = os.path.join(areas, category)
         os.makedirs(dest_dir, exist_ok=True)
         dest_md_file = os.path.join(dest_dir, md_file)
         post = frontmatter.Post(content=content, **metadata)
+
         with open(os.path.join(staging, md_file), "w", encoding="utf-8") as f:
             frontmatter.dump(post, f)
+
         shutil.move(os.path.join(staging, md_file), dest_md_file)
+
         if pdf_name and os.path.exists(pdf_path):
             dest_pdf_file = os.path.join(dest_dir, pdf_name)
             shutil.move(pdf_path, dest_pdf_file)
+
         inbox_pdf = os.path.join(inbox, pdf_name)
         if pdf_name and os.path.exists(inbox_pdf):
             os.remove(inbox_pdf)
+
         return {"status": f"Approved {md_file}"}
+
     return {"status": "Not approved: # Reviewed: false"}
 
 @app.post("/organize")
 async def manual_organize():
-    await organize_files()
+    organize_files()  # sync version — no await
     return {"status": "Organized"}
 
 @app.get("/trigger-organize")
 async def trigger_organize():
-    await organize_files()
+    organize_files()  # sync version — no await
     return {"status": "Organized"}
 
-# Simple file upload endpoint to replace WebDAV temporarily
 @app.post("/upload/{folder}")
 async def upload_file(folder: str, file_data: dict):
     allowed_folders = ["Inbox", "Staging", "Areas"]
     if folder not in allowed_folders:
         raise HTTPException(status_code=400, detail="Invalid folder")
-    
-    # Create the folder path
+
     path = f"pkm/{folder}"
     os.makedirs(path, exist_ok=True)
-    
-    # Save the file
+
     filename = file_data.get("filename")
     content = file_data.get("content")
-    
+
     if not filename or not content:
         raise HTTPException(status_code=400, detail="Filename and content are required")
-    
+
     with open(os.path.join(path, filename), "wb") as f:
         if isinstance(content, str):
             f.write(content.encode())
         else:
             f.write(content)
-    
+
     return {"status": f"File uploaded to {folder}"}
 
 @app.get("/files/{folder}")
@@ -130,12 +134,15 @@ async def root():
 
 @app.on_event("startup")
 async def startup_event():
-    # Create necessary directories
     os.makedirs("pkm/Inbox", exist_ok=True)
     os.makedirs("pkm/Staging", exist_ok=True)
     os.makedirs("pkm/Areas", exist_ok=True)
     os.makedirs("pkm/Logs", exist_ok=True)
-    
-    await indexKB()
+
+    try:
+        indexKB()  # sync version — no await
+    except Exception as e:
+        print(f"Startup indexing error: {e}")
+
     scheduler.add_job(organize_files, "cron", hour=2)
     scheduler.start()
