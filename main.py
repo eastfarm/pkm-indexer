@@ -82,6 +82,11 @@ async def manual_organize():
     await organize_files()
     return {"status": "Organized"}
 
+@app.get("/trigger-organize")
+async def trigger_organize():
+    await organize_files()
+    return {"status": "Organized"}
+
 # Simple file upload endpoint to replace WebDAV temporarily
 @app.post("/upload/{folder}")
 async def upload_file(folder: str, file_data: dict):
