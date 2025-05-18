@@ -53,8 +53,12 @@ def organize_files():
             with open(log_file, "a", encoding="utf-8") as log_f:
                 log_f.write(f"Processing {md_file}\n")
 
-            with open(os.path.join(inbox, md_file), "r", encoding="utf-8") as f:
-                content = f.read()
+            with open(os.path.join(inbox, md_file), "rb") as f:
+                raw_bytes = f.read()
+            try:
+                content = raw_bytes.decode("utf-8")
+            except UnicodeDecodeError:
+                content = raw_bytes.decode("latin-1")
 
             post = frontmatter.loads(content)
             if not post.metadata:
@@ -87,3 +91,6 @@ def organize_files():
                 log_f.write(f"# Error processing {md_file} at {time.time()}\n")
                 log_f.write(f"Message: {str(e)}\n\n")
             continue
+
+if __name__ == "__main__":
+    organize_files()
