@@ -11,6 +11,7 @@ import re
 
 app = FastAPI()
 
+# Enable CORS for testing/development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -126,6 +127,21 @@ async def list_files(folder: str):
     files = os.listdir(path)
     return {"files": files}
 
+@app.get("/file-content/{folder}/{filename}")
+async def get_file_content(folder: str, filename: str):
+    allowed_folders = ["Inbox", "Staging", "Areas", "Logs"]
+    if folder not in allowed_folders:
+        raise HTTPException(status_code=400, detail="Invalid folder")
+    file_path = os.path.join("pkm", folder, filename)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not read file: {e}")
+
 @app.get("/")
 async def root():
     return {"message": "PKM Indexer API is running. Use /search, /staging, /approve, or /organize endpoints."}
@@ -138,7 +154,7 @@ async def startup_event():
     os.makedirs("pkm/Logs", exist_ok=True)
 
     try:
-        await indexKB()  # ✅ async call respected
+        await indexKB()  # async indexer for FAISS
     except Exception as e:
         print(f"Startup indexing error: {e}")
 
