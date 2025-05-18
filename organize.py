@@ -6,13 +6,14 @@ from openai import AsyncOpenAI
 import re
 import asyncio
 
-client = AsyncOpenAI()
+# ✅ Explicitly initialize the OpenAI client with the API key
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 async def get_metadata(content):
     try:
         prompt = f"Summarize this content in 1 sentence:\n{content}\n\nProvide 2-5 tags for this content."
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that summarizes content and generates metadata."},
                 {"role": "user", "content": prompt}
@@ -24,7 +25,6 @@ async def get_metadata(content):
         tags = [tag.strip() for tag in result.split("\n")[1].split(",") if tag.strip()]
         return summary, tags
     except Exception as e:
-        # Log the error
         logs = "pkm/Logs"
         os.makedirs(logs, exist_ok=True)
         log_file = os.path.join(logs, f"log_organize_{int(time.time())}.md")
@@ -55,11 +55,9 @@ async def organize_files():
             with open(log_file, "a", encoding="utf-8") as log_f:
                 log_f.write(f"Processing {md_file}\n")
             
-            # Read the file
             with open(os.path.join(inbox, md_file), "r", encoding="utf-8") as f:
                 content = f.read()
             
-            # Parse existing frontmatter
             post = frontmatter.loads(content)
             if not post.metadata:
                 post.metadata = {
@@ -69,25 +67,21 @@ async def organize_files():
                     "category": "General",
                     "pdf": ""
                 }
-            
-            # Generate summary and tags if not already present
+
             if "summary" not in post.metadata or "tags" not in post.metadata:
                 summary, tags = await get_metadata(post.content)
                 post.metadata["summary"] = summary
                 post.metadata["tags"] = tags
             
-            # Add Reviewed: false if not present
             if not re.search(r"# Reviewed: (true|false)", post.content, re.IGNORECASE):
                 post.content += "\n\n# Reviewed: false"
-            
-            # Write to Staging
+
             with open(os.path.join(staging, md_file), "w", encoding="utf-8") as f:
                 frontmatter.dump(post, f)
             
             with open(log_file, "a", encoding="utf-8") as log_f:
                 log_f.write(f"Wrote {md_file} to Staging\n")
-            
-            # Move the file (delete from Inbox)
+
             os.remove(os.path.join(inbox, md_file))
             with open(log_file, "a", encoding="utf-8") as log_f:
                 log_f.write(f"Removed {md_file} from Inbox\n")
