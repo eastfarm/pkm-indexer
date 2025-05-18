@@ -11,7 +11,6 @@ import re
 
 app = FastAPI()
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -73,8 +72,7 @@ async def approve(file: File):
         shutil.move(os.path.join(staging, md_file), dest_md_file)
 
         if pdf_name and os.path.exists(pdf_path):
-            dest_pdf_file = os.path.join(dest_dir, pdf_name)
-            shutil.move(pdf_path, dest_pdf_file)
+            shutil.move(pdf_path, os.path.join(dest_dir, pdf_name))
 
         inbox_pdf = os.path.join(inbox, pdf_name)
         if pdf_name and os.path.exists(inbox_pdf):
@@ -86,12 +84,12 @@ async def approve(file: File):
 
 @app.post("/organize")
 async def manual_organize():
-    organize_files()  # sync version — no await
+    organize_files()
     return {"status": "Organized"}
 
 @app.get("/trigger-organize")
 async def trigger_organize():
-    organize_files()  # sync version — no await
+    organize_files()
     return {"status": "Organized"}
 
 @app.post("/upload/{folder}")
@@ -140,7 +138,7 @@ async def startup_event():
     os.makedirs("pkm/Logs", exist_ok=True)
 
     try:
-        indexKB()  # sync version — no await
+        await indexKB()  # ✅ async call respected
     except Exception as e:
         print(f"Startup indexing error: {e}")
 

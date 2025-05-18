@@ -5,7 +5,6 @@ import frontmatter
 import openai
 import re
 
-# ✅ Legacy client — just set the API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_metadata(content):
@@ -22,7 +21,7 @@ def get_metadata(content):
         result = response["choices"][0]["message"]["content"]
         summary = result.split("\n")[0]
         tags = [tag.strip() for tag in result.split("\n")[1].split(",") if tag.strip()]
-        return summary, tags
+        return summary or "No summary available", tags or ["uncategorized"]
     except Exception as e:
         logs = "pkm/Logs"
         os.makedirs(logs, exist_ok=True)
@@ -31,7 +30,7 @@ def get_metadata(content):
             log_f.write(f"# Error in get_metadata at {time.time()}\n")
             log_f.write(f"Message: {str(e)}\n")
             log_f.write(f"Content: {content[:100]}...\n\n")
-        return "Summary not available", []
+        return "Summary not available", ["uncategorized"]
 
 def organize_files():
     inbox = "pkm/Inbox"
@@ -59,18 +58,16 @@ def organize_files():
 
             post = frontmatter.loads(content)
             if not post.metadata:
-                post.metadata = {
-                    "title": md_file.replace(".md", ""),
-                    "date": time.strftime("%Y-%m-%d"),
-                    "tags": [],
-                    "category": "General",
-                    "pdf": ""
-                }
+                post.metadata = {}
 
-            if "summary" not in post.metadata or "tags" not in post.metadata:
-                summary, tags = get_metadata(post.content)
-                post.metadata["summary"] = summary
-                post.metadata["tags"] = tags
+            post.metadata.setdefault("title", md_file.replace(".md", ""))
+            post.metadata.setdefault("date", time.strftime("%Y-%m-%d"))
+            post.metadata.setdefault("category", "General")
+            post.metadata.setdefault("pdf", "")
+
+            summary, tags = get_metadata(post.content)
+            post.metadata["summary"] = summary
+            post.metadata["tags"] = tags
 
             if not re.search(r"# Reviewed: (true|false)", post.content, re.IGNORECASE):
                 post.content += "\n\n# Reviewed: false"
@@ -90,6 +87,3 @@ def organize_files():
                 log_f.write(f"# Error processing {md_file} at {time.time()}\n")
                 log_f.write(f"Message: {str(e)}\n\n")
             continue
-
-if __name__ == "__main__":
-    organize_files()
