@@ -1,10 +1,10 @@
-import os
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from organize import organize_files
 from index import indexKB, searchKB
+import os
 import frontmatter
 import shutil
 import re
@@ -108,6 +108,17 @@ async def upload_file(folder: str, file_data: dict):
     
     return {"status": f"File uploaded to {folder}"}
 
+@app.get("/files/{folder}")
+async def list_files(folder: str):
+    allowed_folders = ["Inbox", "Staging", "Areas", "Logs"]
+    if folder not in allowed_folders:
+        raise HTTPException(status_code=400, detail="Invalid folder")
+    path = f"pkm/{folder}"
+    if not os.path.exists(path):
+        return {"files": []}
+    files = os.listdir(path)
+    return {"files": files}
+
 @app.get("/")
 async def root():
     return {"message": "PKM Indexer API is running. Use /search, /staging, /approve, or /organize endpoints."}
@@ -120,12 +131,6 @@ async def startup_event():
     os.makedirs("pkm/Areas", exist_ok=True)
     os.makedirs("pkm/Logs", exist_ok=True)
     
-    # Initialize the index
     await indexKB()
-    
-    # Schedule the organize task
     scheduler.add_job(organize_files, "cron", hour=2)
     scheduler.start()
-
-# Note: WebDAV functionality has been temporarily removed to get the app running
-# We'll add it back once the basic app is working
