@@ -8,6 +8,7 @@ import os
 import frontmatter
 import shutil
 import re
+import base64
 
 app = FastAPI()
 
@@ -108,13 +109,16 @@ async def upload_file(folder: str, file_data: dict):
     if not filename or not content:
         raise HTTPException(status_code=400, detail="Filename and content are required")
 
-    with open(os.path.join(path, filename), "wb") as f:
-        if isinstance(content, str):
-            f.write(content.encode())
-        else:
-            f.write(content)
+    try:
+        # Decode base64 content
+        decoded = base64.b64decode(content.encode())
 
-    return {"status": f"File uploaded to {folder}"}
+        with open(os.path.join(path, filename), "wb") as f:
+            f.write(decoded)
+
+        return {"status": f"File uploaded to {folder}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {e}")
 
 @app.get("/files/{folder}")
 async def list_files(folder: str):
@@ -154,7 +158,7 @@ async def startup_event():
     os.makedirs("pkm/Logs", exist_ok=True)
 
     try:
-        await indexKB()  # async indexer for FAISS
+        await indexKB()
     except Exception as e:
         print(f"Startup indexing error: {e}")
 
